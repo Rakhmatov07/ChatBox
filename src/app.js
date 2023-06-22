@@ -32,6 +32,9 @@ io.on('connection', async(socket) => {
 
         // Join Message
         socket.broadcast.to(newUser.room).emit('message', messageFormat(botName, `${username} is joined to ${room} group.`));
+    
+        // room and users
+        io.to(newUser.room).emit('roomUsers', {room: newUser.room, users});
     });
  
     socket.on('chatMessage', (text) => {
@@ -45,6 +48,9 @@ io.on('connection', async(socket) => {
         const user = users.find(u => u.id === socket.id);
         const updatedUsers = users.filter(user => user.id !== socket.id);
         io.to(user.room).emit('message', messageFormat(botName, `${user.username} left the group`));
+        
+        // room and users
+        io.to(user.room).emit('roomUsers', {room: user.room, users: updatedUsers});
     });
 
 })

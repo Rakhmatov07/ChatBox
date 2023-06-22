@@ -9,6 +9,7 @@ const IO = require("./utils/io");
 const Users = new IO("./database/users.json");
 const userModel = require("./models/user");
 const messageFormat = require("./models/message");
+const botName = 'ChatBox';
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
@@ -19,26 +20,31 @@ app.set("view engine", "ejs");
 app.set("views", "src/views")
 
 io.on('connection', async(socket) => {
-    socket.emit('message', `Welcome to Chatbox!`);
     const users = await Users.read();
     socket.on('join', async({username, room}) => {
-        socket.broadcast.emit('message', `${username} is joined to ${room} group.`);
+        // Welcome Message
+        socket.emit('message', messageFormat(botName, `Welcome to Chatbox!`));
         const newUser = new userModel(socket.id, username, room);
         socket.join(newUser.room);
         console.log(newUser);
         const data = users.length ? [...users, newUser] : [newUser];
         await Users.write(data);
+
+        // Join Message
+        socket.broadcast.to(newUser.room).emit('message', messageFormat(botName, `${username} is joined to ${room} group.`));
     });
  
     socket.on('chatMessage', (text) => {
         const user = users.find((u) => u.id === socket.id);
         const msg = messageFormat(user.username, text);
         console.log(msg);
-        io.emit('message', msg);
+        io.to(user.room).emit('message', msg);
     })
 
     socket.on('disconnect', ()  => {
-        io.emit('message', 'User left the group');
+        const user = users.find(u => u.id === socket.id);
+        const updatedUsers = users.filter(user => user.id !== socket.id);
+        io.to(user.room).emit('message', messageFormat(botName, `${user.username} left the group`));
     });
 
 })
